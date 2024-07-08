@@ -41,15 +41,15 @@ function getCssSelector(element) {
 }
 
 function sendActionsToServer(actions) {
-  // fetch('http://localhost:8080/api/automation/record', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify(actions),
-  // })
-  // .then(response => response.json())
-  // .then(data => console.log('Success:', data))
-  // .catch((error) => console.error('Error:', error));
-  console.log(actions)
+  fetch('http://localhost:8080/api/test-scenarios/record', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'chrome-extension://<ekogbfpfabeaacciefigammcaddfjkah>'
+    },
+    body: JSON.stringify(actions),
+  })
+      .then(response => response.json())
+      .then(data => console.log('Success:', data))
+      .catch((error) => console.error('Error:', error));
 }
