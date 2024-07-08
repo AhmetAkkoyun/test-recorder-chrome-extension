@@ -1,0 +1,16 @@
+{
+    "manifest_version": 2,
+    "name": "Test Scenario Recorder",
+    "version": "1.0",
+    "description": "Records user interactions for test automation",
+    "permissions": ["activeTab", "storage"],
+    "browser_action": {
+      "default_popup": "popup.html"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"]
+      }
+    ]
+  }
