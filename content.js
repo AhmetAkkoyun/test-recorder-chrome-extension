@@ -1,18 +1,39 @@
 let recording = false;
 let actions = [];
 let currentInputGroup = null;
+let recordId;
+
+// UUID oluşturma fonksiyonu
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0,
+        v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === "startRecording") {
+    if (localStorage.getItem('recordId') === null) {
+      recordId = generateUUID();
+      localStorage.setItem('recordId', recordId);
+      console.log("Oluşan recordId: " + recordId);
+    } else {
+      recordId = localStorage.getItem('recordId');
+    }
     recording = true;
     actions = [];
     currentInputGroup = null;
     console.log("Recording started");
+
   } else if (request.action === "stopRecording") {
+    console.log('durmadan hemen önce recordID = ' + localStorage.getItem('recordId'));
     recording = false;
     finalizeCurrentInputGroup();
     console.log("Recording stopped", actions);
     sendActionsToServer(actions);
+    localStorage.clear();
+    console.log('recordId = ' + recordId);
   }
 });
 
@@ -26,6 +47,13 @@ document.addEventListener('click', function(e) {
       selector: `${selector}${coordinates}`,
       text: e.target.textContent.trim(),
     });
+    saveActionsToLocalStorage(actions);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function(e) {
+  if (recording) {
+    console.log(e);
   }
 });
 
@@ -50,6 +78,7 @@ document.addEventListener('input', function(e) {
 function finalizeCurrentInputGroup() {
   if (currentInputGroup) {
     actions.push(currentInputGroup);
+    saveActionsToLocalStorage(actions);
     currentInputGroup = null;
   }
 }
@@ -72,6 +101,15 @@ function getUniqueSelector(element) {
   if (classes.length) return '.' + classes.join('.');
 
   return element.tagName.toLowerCase();
+}
+
+// LOCALSTORAGE
+function saveActionsToLocalStorage(actions) {
+  actions.forEach(action => {
+    if (action.selector && action.value !== null) {
+      localStorage.setItem(action.selector, JSON.stringify(action));
+    }
+  });
 }
 
 function sendActionsToServer(actions) {
