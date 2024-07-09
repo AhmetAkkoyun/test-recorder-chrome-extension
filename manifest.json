@@ -8,13 +8,16 @@
     "storage",
     "http://localhost:8080/"
   ],
-  "browser_action": {
-    "default_popup": "popup.html"
-  },
+  "browser_action": {},
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "css": ["content.css"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  }
 }

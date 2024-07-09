@@ -1,7 +1,75 @@
+let panel;
 let recording = false;
 let actions = [];
 let currentInputGroup = null;
 let recordId;
+
+function createPanel() {
+  panel = document.createElement('div');
+  panel.id = 'test-recorder-panel';
+  panel.style.display = 'none';
+  panel.innerHTML = `
+    <button id="closePanel" style="float: right;">—</button>
+    <button id="startRecording">Başlat</button>
+    <button id="pauseRecording" class="hidden">Duraklat</button>
+    <button id="continueRecording" class="hidden">Devam Et</button>
+    <button id="stopRecording" class="hidden">Durdur</button>
+  `;
+  document.body.appendChild(panel);
+
+
+  document.getElementById('closePanel').addEventListener('click', () => panel.style.display = 'none');
+  document.getElementById('startRecording').addEventListener('click', startRecording);
+  document.getElementById('pauseRecording').addEventListener('click', pauseRecording);
+  document.getElementById('continueRecording').addEventListener('click', continueRecording);
+  document.getElementById('stopRecording').addEventListener('click', stopRecording);
+}
+
+function showButtons(...buttonsToShow) {
+  ['startRecording', 'pauseRecording', 'continueRecording', 'stopRecording'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+  buttonsToShow.forEach(id => {
+    document.getElementById(id).classList.remove('hidden');
+  });
+}
+
+function startRecording() {
+  if (localStorage.getItem('recordId') === null) {
+    recordId = generateUUID();
+    localStorage.setItem('recordId', recordId);
+    console.log("Oluşan recordId: " + recordId);
+  } else {
+    recordId = localStorage.getItem('recordId');
+  }
+  recording = true;
+  actions = [];
+  currentInputGroup = null;
+  console.log("Recording started");
+  showButtons('pauseRecording', 'stopRecording');
+}
+
+function pauseRecording() {
+  recording = false;
+  console.log("Recording paused");
+  showButtons('continueRecording', 'stopRecording');
+}
+
+function continueRecording() {
+  recording = true;
+  console.log("Recording continued");
+  showButtons('pauseRecording', 'stopRecording');
+}
+
+function stopRecording() {
+  recording = false;
+  finalizeCurrentInputGroup();
+  console.log("Recording stopped", actions);
+  sendActionsToServer(actions);
+  localStorage.clear();
+  console.log('recordId = ' + recordId);
+  showButtons('startRecording');
+}
 
 // UUID oluşturma fonksiyonu
 function generateUUID() {
@@ -11,31 +79,6 @@ function generateUUID() {
     return v.toString(16);
   });
 }
-
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === "startRecording") {
-    if (localStorage.getItem('recordId') === null) {
-      recordId = generateUUID();
-      localStorage.setItem('recordId', recordId);
-      console.log("Oluşan recordId: " + recordId);
-    } else {
-      recordId = localStorage.getItem('recordId');
-    }
-    recording = true;
-    actions = [];
-    currentInputGroup = null;
-    console.log("Recording started");
-
-  } else if (request.action === "stopRecording") {
-    console.log('durmadan hemen önce recordID = ' + localStorage.getItem('recordId'));
-    recording = false;
-    finalizeCurrentInputGroup();
-    console.log("Recording stopped", actions);
-    sendActionsToServer(actions);
-    localStorage.clear();
-    console.log('recordId = ' + recordId);
-  }
-});
 
 document.addEventListener('click', function(e) {
   if (recording) {
@@ -48,12 +91,6 @@ document.addEventListener('click', function(e) {
       text: e.target.textContent.trim(),
     });
     saveActionsToLocalStorage(actions);
-  }
-});
-
-document.addEventListener('DOMContentLoaded', function(e) {
-  if (recording) {
-    console.log(e);
   }
 });
 
@@ -125,3 +162,13 @@ function sendActionsToServer(actions) {
       .then(data => console.log('Success:', data))
       .catch((error) => console.error('Error:', error));
 }
+
+// Mesaj dinleyicisi
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === "togglePanel") {
+    if (!panel) {
+      createPanel();
+    }
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+});
