@@ -1,5 +1,4 @@
 let panel;
-let recording = false;
 let actions = [];
 let currentInputGroup = null;
 let recordId;
@@ -16,7 +15,6 @@ function createPanel() {
     <button id="stopRecording" class="hidden">Durdur</button>
   `;
   document.body.appendChild(panel);
-
 
   document.getElementById('closePanel').addEventListener('click', () => panel.style.display = 'none');
   document.getElementById('startRecording').addEventListener('click', startRecording);
@@ -35,43 +33,43 @@ function showButtons(...buttonsToShow) {
 }
 
 function startRecording() {
-  if (localStorage.getItem('recordId') === null) {
+  if (!localStorage.getItem('recordId')) {
     recordId = generateUUID();
     localStorage.setItem('recordId', recordId);
-    console.log("Oluşan recordId: " + recordId);
   } else {
     recordId = localStorage.getItem('recordId');
   }
-  recording = true;
-  actions = [];
+  localStorage.setItem('recording', 'true');
+  actions = JSON.parse(localStorage.getItem('actions') || '[]');
   currentInputGroup = null;
   console.log("Recording started");
   showButtons('pauseRecording', 'stopRecording');
 }
 
 function pauseRecording() {
-  recording = false;
+  localStorage.setItem('recording', 'false');
   console.log("Recording paused");
   showButtons('continueRecording', 'stopRecording');
 }
 
 function continueRecording() {
-  recording = true;
+  localStorage.setItem('recording', 'true');
   console.log("Recording continued");
   showButtons('pauseRecording', 'stopRecording');
 }
 
 function stopRecording() {
-  recording = false;
+  localStorage.setItem('recording', 'false');
   finalizeCurrentInputGroup();
+  actions = JSON.parse(localStorage.getItem('actions') || '[]');
   console.log("Recording stopped", actions);
   sendActionsToServer(actions);
-  localStorage.clear();
+  localStorage.removeItem('actions');
+  localStorage.removeItem('recordId');
   console.log('recordId = ' + recordId);
   showButtons('startRecording');
 }
 
-// UUID oluşturma fonksiyonu
 function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0,
@@ -81,21 +79,20 @@ function generateUUID() {
 }
 
 document.addEventListener('click', function(e) {
-  if (recording) {
+  if (localStorage.getItem('recording') === 'true') {
     finalizeCurrentInputGroup();
     const selector = getUniqueSelector(e.target);
     const coordinates = `(${e.clientX},${e.clientY})`;
-    actions.push({
+    addAction({
       type: 'click',
       selector: `${selector}${coordinates}`,
-      text: e.target.textContent.trim(),
+      value: e.target.textContent.trim(),
     });
-    saveActionsToLocalStorage(actions);
   }
 });
 
 document.addEventListener('input', function(e) {
-  if (recording) {
+  if (localStorage.getItem('recording') === 'true') {
     const selector = getUniqueSelector(e.target);
     const currentValue = e.target.value;
 
@@ -114,10 +111,15 @@ document.addEventListener('input', function(e) {
 
 function finalizeCurrentInputGroup() {
   if (currentInputGroup) {
-    actions.push(currentInputGroup);
-    saveActionsToLocalStorage(actions);
+    addAction(currentInputGroup);
     currentInputGroup = null;
   }
+}
+
+function addAction(action) {
+  actions = JSON.parse(localStorage.getItem('actions') || '[]');
+  actions.push(action);
+  localStorage.setItem('actions', JSON.stringify(actions));
 }
 
 function getUniqueSelector(element) {
@@ -140,15 +142,6 @@ function getUniqueSelector(element) {
   return element.tagName.toLowerCase();
 }
 
-// LOCALSTORAGE
-function saveActionsToLocalStorage(actions) {
-  actions.forEach(action => {
-    if (action.selector && action.value !== null) {
-      localStorage.setItem(action.selector, JSON.stringify(action));
-    }
-  });
-}
-
 function sendActionsToServer(actions) {
   fetch('http://localhost:8080/api/test-scenarios/record', {
     method: 'POST',
@@ -163,12 +156,20 @@ function sendActionsToServer(actions) {
       .catch((error) => console.error('Error:', error));
 }
 
-// Mesaj dinleyicisi
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === "togglePanel") {
     if (!panel) {
       createPanel();
     }
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+});
+
+// Sayfa yüklendiğinde kayıt durumunu kontrol et
+window.addEventListener('load', function() {
+  if (localStorage.getItem('recording') === 'true') {
+    createPanel();
+    panel.style.display = 'block';
+    showButtons('pauseRecording', 'stopRecording');
   }
 });
