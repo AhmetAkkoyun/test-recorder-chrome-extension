@@ -2,6 +2,7 @@ let panel;
 let actions = [];
 let currentInputGroup = null;
 let recordId;
+let currentUrl
 
 function createPanel() {
   panel = document.createElement('div');
@@ -36,6 +37,8 @@ function startRecording() {
   if (!localStorage.getItem('recordId')) {
     recordId = generateUUID();
     localStorage.setItem('recordId', recordId);
+    currentUrl = window.location.href;
+    localStorage.setItem('currentUrl', currentUrl);
   } else {
     recordId = localStorage.getItem('recordId');
   }
@@ -171,5 +174,12 @@ window.addEventListener('load', function() {
     createPanel();
     panel.style.display = 'block';
     showButtons('pauseRecording', 'stopRecording');
+  }
+  let newPageUrl = window.location.href;
+  if (localStorage.getItem(currentUrl) !== newPageUrl) {
+    localStorage.setItem('currentUrl', newPageUrl)
+  }
+  if (localStorage.getItem(recordId) !== null) {
+    recordId = localStorage.getItem('recordId');
   }
 });
