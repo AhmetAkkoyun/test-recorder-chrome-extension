@@ -128,10 +128,11 @@ function addAction(action) {
 function getUniqueSelector(element) {
   if (element.id) return '#' + element.id;
   if (element.name) return element.tagName.toLowerCase() + '[name="' + element.name + '"]';
-
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName)) {
+    if (element.id) return `${element.tagName.toLowerCase()}[id="${element.id}"]`;
+    if (element.className) return `${element.tagName.toLowerCase()}[className="${element.className}"]`;
     if (element.placeholder) return `${element.tagName.toLowerCase()}[placeholder="${element.placeholder}"]`;
-    if (element.type) return `${element.tagName.toLowerCase()}[type="${element.type}"]`;
+   // if (element.type) return `${element.tagName.toLowerCase()}[type="${element.type}"]`;
   }
 
   const labels = element.labels;
