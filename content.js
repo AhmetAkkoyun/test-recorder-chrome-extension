@@ -7,13 +7,14 @@ let currentUrl
 function createPanel() {
   panel = document.createElement('div');
   panel.id = 'test-recorder-panel';
+  panel.setAttribute('data-recorder-ui', 'true');
   panel.style.display = 'none';
   panel.innerHTML = `
-    <button id="closePanel" style="float: right;">—</button>
-    <button id="startRecording">Başlat</button>
-    <button id="pauseRecording" class="hidden">Duraklat</button>
-    <button id="continueRecording" class="hidden">Devam Et</button>
-    <button id="stopRecording" class="hidden">Durdur</button>
+    <button id="closePanel" data-recorder-ui="true" style="float: right;">—</button>
+    <button id="startRecording" data-recorder-ui="true">Başlat</button>
+    <button id="pauseRecording" data-recorder-ui="true" class="hidden">Duraklat</button>
+    <button id="continueRecording" data-recorder-ui="true" class="hidden">Devam Et</button>
+    <button id="stopRecording" data-recorder-ui="true" class="hidden">Durdur</button>
   `;
   document.body.appendChild(panel);
 
@@ -33,6 +34,7 @@ function showButtons(...buttonsToShow) {
   });
 }
 
+
 function startRecording() {
   if (!localStorage.getItem('recordId')) {
     recordId = generateUUID();
@@ -48,6 +50,7 @@ function startRecording() {
   console.log("Recording started");
   showButtons('pauseRecording', 'stopRecording');
 }
+
 
 function pauseRecording() {
   localStorage.setItem('recording', 'false');
@@ -66,12 +69,19 @@ function stopRecording() {
   finalizeCurrentInputGroup();
   actions = JSON.parse(localStorage.getItem('actions') || '[]');
   console.log("Recording stopped", actions);
-  sendActionsToServer(actions);
+
+  if (actions.length > 0) {
+    sendActionsToServer(actions);
+  } else {
+    console.log("No actions to send");
+  }
+
   localStorage.removeItem('actions');
   localStorage.removeItem('recordId');
   console.log('recordId = ' + recordId);
   showButtons('startRecording');
 }
+
 
 function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -81,8 +91,12 @@ function generateUUID() {
   });
 }
 
+
 document.addEventListener('click', function(e) {
   if (localStorage.getItem('recording') === 'true') {
+    if (e.target.closest('[data-recorder-ui]')) {
+      return;
+    }
     finalizeCurrentInputGroup();
     const selector = getUniqueSelector(e.target);
     const coordinates = `(${e.clientX},${e.clientY})`;
@@ -112,64 +126,7 @@ document.addEventListener('input', function(e) {
   }
 });
 
-function finalizeCurrentInputGroup() {
-  if (currentInputGroup) {
-    addAction(currentInputGroup);
-    currentInputGroup = null;
-  }
-}
 
-function addAction(action) {
-  actions = JSON.parse(localStorage.getItem('actions') || '[]');
-  actions.push(action);
-  localStorage.setItem('actions', JSON.stringify(actions));
-}
-
-function getUniqueSelector(element) {
-  if (element.id) return '#' + element.id;
-  if (element.name) return element.tagName.toLowerCase() + '[name="' + element.name + '"]';
-  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName)) {
-    if (element.id) return `${element.tagName.toLowerCase()}[id="${element.id}"]`;
-    if (element.className) return `${element.tagName.toLowerCase()}[className="${element.className}"]`;
-    if (element.placeholder) return `${element.tagName.toLowerCase()}[placeholder="${element.placeholder}"]`;
-   // if (element.type) return `${element.tagName.toLowerCase()}[type="${element.type}"]`;
-  }
-
-  const labels = element.labels;
-  if (labels && labels.length > 0) {
-    return `${element.tagName.toLowerCase()}[aria-label="${labels[0].textContent.trim()}"]`;
-  }
-
-  const classes = Array.from(element.classList).filter(c => !c.startsWith('ng-'));
-  if (classes.length) return '.' + classes.join('.');
-
-  return element.tagName.toLowerCase();
-}
-
-function sendActionsToServer(actions) {
-  fetch('http://localhost:8080/api/test-scenarios/record', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Origin': 'chrome-extension://<ekogbfpfabeaacciefigammcaddfjkah>'
-    },
-    body: JSON.stringify(actions),
-  })
-      .then(response => response.json())
-      .then(data => console.log('Success:', data))
-      .catch((error) => console.error('Error:', error));
-}
-
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === "togglePanel") {
-    if (!panel) {
-      createPanel();
-    }
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  }
-});
-
-// Sayfa yüklendiğinde kayıt durumunu kontrol et
 window.addEventListener('load', function() {
   if (localStorage.getItem('recording') === 'true') {
     createPanel();
@@ -184,3 +141,84 @@ window.addEventListener('load', function() {
     recordId = localStorage.getItem('recordId');
   }
 });
+
+function finalizeCurrentInputGroup() {
+  if (currentInputGroup) {
+    addAction(currentInputGroup);
+    currentInputGroup = null;
+  }
+}
+
+function addAction(action) {
+  actions = JSON.parse(localStorage.getItem('actions') || '[]');
+  actions.push(action);
+  localStorage.setItem('actions', JSON.stringify(actions));
+}
+
+function getUniqueSelector(element) {
+  // ID varsa, onu kullan
+  if (element.id) {
+    return '#' + CSS.escape(element.id);
+  }
+
+  // ID yoksa, XPath oluştur
+  let path = '';
+  while (element !== document.body) {
+    if (!element.parentNode) {
+      break;
+    }
+
+    let idx = Array.from(element.parentNode.children)
+        .filter(e => e.tagName === element.tagName)
+        .indexOf(element) + 1;
+
+    idx > 1 ? (path = `/${element.tagName.toLowerCase()}[${idx}]${path}`)
+        : (path = `/${element.tagName.toLowerCase()}${path}`);
+
+    element = element.parentNode;
+  }
+
+  return `xpath=/html${path}`;
+}
+
+
+
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === "togglePanel") {
+    if (!panel) {
+      createPanel();
+    }
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+});
+
+
+
+function sendActionsToServer(actions) {
+  const payload = {
+    recordId: recordId,
+    actions: actions
+  };
+
+  console.log('Sending payload:', payload);  // Gönderilen veriyi loglayın
+
+  fetch('http://localhost:8080/api/test-scenarios/record?recordId=' + recordId, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(actions)
+  })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => console.log('Success:', data))
+      .catch((error) => {
+        console.error('Error:', error);
+        console.error('Error details:', error.message);
+      });
+}
