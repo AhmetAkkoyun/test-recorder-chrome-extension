@@ -1,7 +1,7 @@
 let panel;
 let actions = [];
 let currentInputGroup = null;
-let recordId;
+let modelId;
 let currentUrl
 
 function createPanel() {
@@ -36,13 +36,13 @@ function showButtons(...buttonsToShow) {
 
 
 function startRecording() {
-  if (!localStorage.getItem('recordId')) {
-    recordId = generateUUID();
-    localStorage.setItem('recordId', recordId);
+  if (!localStorage.getItem('modelId')) {
+    modelId = generateUUID();
+    localStorage.setItem('modelId', modelId);
     currentUrl = window.location.href;
     localStorage.setItem('currentUrl', currentUrl);
   } else {
-    recordId = localStorage.getItem('recordId');
+    modelId = localStorage.getItem('modelId');
   }
   localStorage.setItem('recording', 'true');
   actions = JSON.parse(localStorage.getItem('actions') || '[]');
@@ -77,18 +77,31 @@ function stopRecording() {
   }
 
   localStorage.removeItem('actions');
-  localStorage.removeItem('recordId');
-  console.log('recordId = ' + recordId);
+  localStorage.removeItem('modelId');
+  console.log('modelId = ' + modelId);
   showButtons('startRecording');
 }
 
 
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0,
-        v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+function requestUUID() {
+  fetch('http://localhost:9090/api/test-scenarios/record?modelId=' + modelId, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(actions)
+  })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => console.log('Success:', data))
+      .catch((error) => {
+        console.error('Error:', error);
+        console.error('Error details:', error.message);
+      });
 }
 
 
@@ -137,8 +150,8 @@ window.addEventListener('load', function() {
   if (localStorage.getItem(currentUrl) !== newPageUrl) {
     localStorage.setItem('currentUrl', newPageUrl)
   }
-  if (localStorage.getItem(recordId) !== null) {
-    recordId = localStorage.getItem('recordId');
+  if (localStorage.getItem(modelId) !== null) {
+    modelId = localStorage.getItem('modelId');
   }
 });
 
@@ -197,13 +210,13 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 function sendActionsToServer(actions) {
   const payload = {
-    recordId: recordId,
+    modelId: modelId,
     actions: actions
   };
 
   console.log('Sending payload:', payload);  // Gönderilen veriyi loglayın
 
-  fetch('http://localhost:8080/api/test-scenarios/record?recordId=' + recordId, {
+  fetch('http://localhost:8080/api/test-scenarios/record?modelId=' + modelId, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
