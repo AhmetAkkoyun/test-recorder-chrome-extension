@@ -706,5 +706,5 @@ Sunucu entegrasyonu
 
 
 ## İletişim / Destek
-BilgeAdam Mimari ve İnovasyon Direktörlüğü - Test Otomasyon Projesi Geliştirme Takımı
+Adım garavel. Bul beni!
 
